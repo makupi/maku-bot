@@ -1,1 +1,1 @@
-worker: python3 maku_bot/maku_bot.py
+worker: python maku_bot/maku_bot.py
