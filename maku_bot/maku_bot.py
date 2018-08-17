@@ -9,8 +9,16 @@ import discord
 from discord import Game
 #from discord.ext.commands import Bot
 
-with open('settings.json') as f:
-    data = json.loads(f.read())
+import os
+is_prod = os.environ.get('IS_HEROKU', None)
+
+if is_prod:
+    data = {
+        'TOKEN': os.environ.get('DISCORD_TOKEN', None)
+    }
+else:
+    with open('settings.json') as f:
+        data = json.loads(f.read())
 
 
 DATABASE = {}
