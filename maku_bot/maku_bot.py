@@ -1,6 +1,4 @@
-#import random
 import asyncio
-#import aiohttp
 import json
 
 import re
@@ -8,6 +6,13 @@ import re
 import discord
 from discord import Game
 #from discord.ext.commands import Bot
+
+from tinydb.storages import JSONStorage
+from tinydb.middlewares import CachingMiddleware
+from tinydb import TinyDB, Query
+
+db = TinyDB('db.json', storage=CachingMiddleware(JSONStorage))
+db._storage.WRITE_CACHE_SIZE = 1
 
 import os
 is_prod = os.environ.get('IS_HEROKU', None)
@@ -21,7 +26,7 @@ else:
         data = json.loads(f.read())
 
 
-DATABASE = {}
+#DATABASE = {}
 
 BOT_PREFIX = ('.')
 TOKEN = data['TOKEN']  # Get at discordapp.com/developers/applications/me
@@ -42,32 +47,44 @@ async def on_ready():
     print("Logged in as " + client.user.name)
 
 def add_results(server_id, results):
-    if server_id in DATABASE:
-        db = DATABASE[server_id]
-    else:
-        DATABASE[server_id] = {}
+    db_s = db.table(server_id)
+    local = db_s.all()
+    if not local:
+        db_s.insert({})
+        
+    local = db_s.all()[0]
 
-    db = DATABASE[server_id]
-    
     for r in results:
-        if r in db:
-            db[r] = db[r] + 1
+        if r in local:
+            #db_s[r] = db[r] + 1
+            local[r] = local[r] + 1
+            db_s.update(local)
         else:
-            db[r] = 1
+            local[r] = 1
+            db_s.update(local)
+            
 
-    print(db)
 
 def get_top(server_id):
-    if server_id in DATABASE:
-        db = DATABASE[server_id]
-        newA = {key: db[key] for key in sorted(db, key=db.get, reverse=True)[:5]}
-        return newA
+    db_s = db.table(server_id)
+    try:
+        local = db_s.all()[0]
+    except:
+        return 
+        
+    newA = {key: local[key] for key in sorted(local, key=local.get, reverse=True)[:5]}
+    return newA
 
 def get_count(server_id, emote):
-    if server_id in DATABASE:
-        db = DATABASE[server_id]
-        if emote in db:
-            return db[emote]
+    db_s = db.table(server_id)
+    #if server_id in DATABASE:
+    try:
+        local = db_s.all()[0]
+    except:
+        local = None
+
+    if emote in local:
+        return local[emote]
 
 # @client.command()
 # async def top():
@@ -99,7 +116,9 @@ async def on_message(message):
 
         if cmd == 'top':
             top_emotes = get_top(message.server.id)
-            print(top_emotes)
+            if top_emotes is None:
+                # figure something out
+                return
             #string = ''
             em = discord.Embed(title='Top 5 most used Emotes'.upper(), color=0x50bdfe)
             for key, value in top_emotes.items():
