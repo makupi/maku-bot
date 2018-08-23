@@ -7,23 +7,31 @@ import discord
 from discord import Game
 #from discord.ext.commands import Bot
 
-from tinydb.storages import JSONStorage
-from tinydb.middlewares import CachingMiddleware
-from tinydb import TinyDB, Query
-
-db = TinyDB('db.json', storage=CachingMiddleware(JSONStorage))
-db._storage.WRITE_CACHE_SIZE = 1
 
 import os
 is_prod = os.environ.get('IS_HEROKU', None)
 
 if is_prod:
     data = {
-        'TOKEN': os.environ.get('DISCORD_TOKEN', None)
+        'TOKEN': os.environ.get('DISCORD_TOKEN', None),
+        'MONGODB': os.environ.get('MONGODB_URL', None)
     }
 else:
     with open('settings.json') as f:
         data = json.loads(f.read())
+        data['MONGODB'] = "mongodb://localhost:27017/"
+
+use_tinydb = None
+if use_tinydb:
+    from tinydb.storages import JSONStorage
+    from tinydb.middlewares import CachingMiddleware
+    from tinydb import TinyDB, Query
+
+    db = TinyDB('db.json', storage=CachingMiddleware(JSONStorage))
+    db._storage.WRITE_CACHE_SIZE = 1
+else:
+    from pymongo import MongoClient
+    client = MongoClient(data['MONGODB'])
 
 
 #DATABASE = {}
@@ -33,6 +41,7 @@ TOKEN = data['TOKEN']  # Get at discordapp.com/developers/applications/me
 
 client = discord.Client()
 
+
 async def list_servers():
     await client.wait_until_ready()
     while not client.is_closed:
@@ -41,17 +50,19 @@ async def list_servers():
             print(server.name)
         await asyncio.sleep(600)
 
+
 @client.event
 async def on_ready():
     await client.change_presence(game=Game(name="with humans"))
     print("Logged in as " + client.user.name)
+
 
 def add_results(server_id, results):
     db_s = db.table(server_id)
     local = db_s.all()
     if not local:
         db_s.insert({})
-        
+
     local = db_s.all()[0]
 
     for r in results:
@@ -62,7 +73,6 @@ def add_results(server_id, results):
         else:
             local[r] = 1
             db_s.update(local)
-            
 
 
 def get_top(server_id):
@@ -70,10 +80,12 @@ def get_top(server_id):
     try:
         local = db_s.all()[0]
     except:
-        return 
-        
-    newA = {key: local[key] for key in sorted(local, key=local.get, reverse=True)[:5]}
+        return
+
+    newA = {key: local[key]
+            for key in sorted(local, key=local.get, reverse=True)[:5]}
     return newA
+
 
 def get_count(server_id, emote):
     db_s = db.table(server_id)
@@ -94,7 +106,6 @@ def get_count(server_id, emote):
 #     for key, value in top_emotes:
 #         string = string + key + ' [' + value + '] ;; '
 #     await client.say(string)
-    
 
 
 @client.event
@@ -120,7 +131,8 @@ async def on_message(message):
                 # figure something out
                 return
             #string = ''
-            em = discord.Embed(title='Top 5 most used Emotes'.upper(), color=0x50bdfe)
+            em = discord.Embed(
+                title='Top 5 most used Emotes'.upper(), color=0x50bdfe)
             for key, value in top_emotes.items():
                 #string = string + str(key) + ' [' + str(value) + '] ;; '
                 em.add_field(name=str(key), value=value, inline=False)
@@ -130,7 +142,8 @@ async def on_message(message):
         if cmd == 'count':
             if len(result) == 1:
                 cnt = get_count(message.server.id, result[0])
-                string = ":" + result[0] + ": was used `" + str(cnt) + "` times."
+                string = ":" + result[0] + \
+                    ": was used `" + str(cnt) + "` times."
                 await client.send_message(message.channel, string)
 
 
