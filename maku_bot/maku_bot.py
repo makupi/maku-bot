@@ -14,12 +14,13 @@ is_prod = os.environ.get('IS_HEROKU', None)
 if is_prod:
     data = {
         'TOKEN': os.environ.get('DISCORD_TOKEN', None),
-        'MONGODB': os.environ.get('MONGODB_URL', None)
+        'MONGODB': os.environ.get('MONGODB', None)
     }
 else:
     with open('settings.json') as f:
         data = json.loads(f.read())
-        data['MONGODB'] = "mongodb://localhost:27017/"
+        data['MONGODB'] = None
+
 
 use_tinydb = None
 if use_tinydb:
@@ -31,7 +32,8 @@ if use_tinydb:
     db._storage.WRITE_CACHE_SIZE = 1
 else:
     from pymongo import MongoClient
-    client = MongoClient(data['MONGODB'])
+    mdb_client = MongoClient(data['MONGODB'])
+    db = mdb_client.servers
 
 
 #DATABASE = {}
@@ -40,7 +42,6 @@ BOT_PREFIX = ('.')
 TOKEN = data['TOKEN']  # Get at discordapp.com/developers/applications/me
 
 client = discord.Client()
-
 
 async def list_servers():
     await client.wait_until_ready()
@@ -58,54 +59,28 @@ async def on_ready():
 
 
 def add_results(server_id, results):
-    db_s = db.table(server_id)
-    local = db_s.all()
-    if not local:
-        db_s.insert({})
-
-    local = db_s.all()[0]
-
-    for r in results:
-        if r in local:
-            #db_s[r] = db[r] + 1
-            local[r] = local[r] + 1
-            db_s.update(local)
-        else:
-            local[r] = 1
-            db_s.update(local)
+    server = db[server_id]
+    for result in results:
+        server.update({'emote': result}, {'$inc': {'count': 1}}, True)
 
 
 def get_top(server_id):
-    db_s = db.table(server_id)
-    try:
-        local = db_s.all()[0]
-    except:
-        return
+    server = db[server_id]
+    top = server.aggregate([{'$sort': {'count': -1}}, {'$limit': 5}])
+    string = dict()
+    for doc in top:
+        string.update({doc['emote']: doc['count']})
 
-    newA = {key: local[key]
-            for key in sorted(local, key=local.get, reverse=True)[:5]}
-    return newA
+    return string
 
 
 def get_count(server_id, emote):
-    db_s = db.table(server_id)
-    #if server_id in DATABASE:
-    try:
-        local = db_s.all()[0]
-    except:
-        local = None
-
-    if emote in local:
-        return local[emote]
-
-# @client.command()
-# async def top():
-#     print(client.server_id)
-#     top_emotes = get_top(client.server_id)
-#     string = ''
-#     for key, value in top_emotes:
-#         string = string + key + ' [' + value + '] ;; '
-#     await client.say(string)
+    server = db[server_id]
+    val = server.find_one({'emote': emote})
+    if val:
+        return val['count']
+    else: 
+        return None
 
 
 @client.event
