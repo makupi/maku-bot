@@ -2,3 +2,4 @@ discord.py==0.16.12
 tinydb==3.10.0
 click==6.7
 discord==0.0.2
+pymongo==3.7.1
