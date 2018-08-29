@@ -121,6 +121,20 @@ async def on_message(message):
                     ": was used `" + str(cnt) + "` times."
                 await client.send_message(message.channel, string)
 
+        if cmd == 'toc':
+            if content:
+                content = int(content)
+                ce = (((content - 32) * 5) / 9)
+                string = str(content) + "F is equal to " + str(round(ce, 2)) + "C."
+                await client.send_message(message.channel, string)
+                
+        if cmd == 'tof':
+            if content:
+                content = int(content)
+                fh = (((content * 9) / 5) + 32)
+                string = str(content) + "C is equal to " + str(round(fh, 2)) + "F."
+                await client.send_message(message.channel, string)
+
 
 client.loop.create_task(list_servers())
 client.run(TOKEN)
