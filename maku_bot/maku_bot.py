@@ -19,21 +19,11 @@ if is_prod:
 else:
     with open('settings.json') as f:
         data = json.loads(f.read())
-        data['MONGODB'] = None
 
 
-use_tinydb = None
-if use_tinydb:
-    from tinydb.storages import JSONStorage
-    from tinydb.middlewares import CachingMiddleware
-    from tinydb import TinyDB, Query
-
-    db = TinyDB('db.json', storage=CachingMiddleware(JSONStorage))
-    db._storage.WRITE_CACHE_SIZE = 1
-else:
-    from pymongo import MongoClient
-    mdb_client = MongoClient(data['MONGODB'])
-    db = mdb_client.servers
+from pymongo import MongoClient
+mdb_client = MongoClient(data['MONGODB'])
+db = mdb_client.servers
 
 
 #DATABASE = {}
@@ -95,7 +85,7 @@ async def on_message(message):
 
     if message.content.startswith('.'):
         spl = message.content[1:].split(' ', 1)
-        cmd = spl[0]
+        cmd = spl[0].lower()
         content = None
         if len(spl) > 1:
             content = spl[1]
