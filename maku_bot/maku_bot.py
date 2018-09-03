@@ -112,6 +112,18 @@ async def top(context):
     string += "```"
     await client.say(string)
 
+@client.command(name='count',
+                description='List the count of specified emote.',
+                brief=': List the count of specified emote.',
+                pass_context=True)
+async def count(context):
+    regex = re.compile(r':[A-Za-z0-9]+:')
+    result = regex.findall(context.message.content)
+    result = [r.replace(':', '') for r in result]
+    cnt = get_count(context.message.server.id, result[0])
+    string = ":" + result[0] + \
+        ": was used `" + str(cnt) + "` times."
+    await client.say(string)
 
 @client.event
 async def on_message(message):
