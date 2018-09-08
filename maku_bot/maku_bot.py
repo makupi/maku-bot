@@ -45,7 +45,7 @@ async def list_servers():
 
 @client.event
 async def on_ready():
-    await client.change_presence(game=Game(name="with humans"))
+    await client.change_presence(game=Game(name=".help | with maku <3"))
     print("Logged in as " + client.user.name)
 
 
@@ -55,14 +55,19 @@ def add_results(server_id, results):
         server.update({'emote': result}, {'$inc': {'count': 1}}, True)
 
 
-def get_top(server_id):
+def get_top(server_id, num, emote=None):
     server = db[server_id]
-    top = server.aggregate([{'$sort': {'count': -1}}, {'$limit': 5}])
+    if emote:
+        rgx = '.*'+emote+'*.'
+        top = server.aggregate([{'$match': {'emote': {'$regex': rgx}}}, {'$sort': {'count': -1}}, {'$limit': num}])
+    else:
+        top = server.aggregate([{'$sort': {'count': -1}}, {'$limit': num}])
     string = dict()
     for doc in top:
         string.update({doc['emote']: doc['count']})
-
-    return string
+    if string:    
+        return string
+    return None
 
 
 def get_count(server_id, emote):
@@ -74,6 +79,7 @@ def get_count(server_id, emote):
         return None
 
 @client.command(name='toc',
+                aliases=['toC'],
                 description='Converts temperature from F to C',
                 brief=': Converts F to C')
 async def to_c(number :int):
@@ -83,6 +89,7 @@ async def to_c(number :int):
     await client.say(string)
 
 @client.command(name='tof',
+                aliases=['toF'],
                 description='Converts temperature from C to F',
                 brief=': Converts C to F')
 async def to_f(number :int):
@@ -93,24 +100,42 @@ async def to_f(number :int):
 
 
 @client.command(name='top',
-                description='Lists the top 5 used emotes.',
+                description='Lists the top N used emotes.\nOptional <str> and <count> parameter.\n\t<count> = N\n\t<str> = filter emotes\nCan use both together.',
                 brief=': List top used emotes.',
                 pass_context=True)
 async def top(context):
-    top_emotes = get_top(context.message.server.id)
+    spl = context.message.content.split(' ')
+    num = 5
+    emote = None
+    if len(spl) > 2:  # .top <count> <str>
+        try:
+            num = int(spl[1])
+        except ValueError:
+            pass
+        emote = spl[2]
+    elif len(spl) == 2: #either <str> or <count>
+        try:
+            num = int(spl[1])
+        except ValueError:
+            emote = spl[1]
+
+    top_emotes = get_top(context.message.server.id, num, emote)
     if top_emotes is None:
         # figure something out
         return
-    string = "```"
-    string += "Top 5 most used Emotes: \n\n"
-    # em = discord.Embed(
-    #     title='Top 5 most used Emotes'.upper(), color=0x50bdfe)
+    index = 1
+    mes = ""
+    mes += "\n\t**Top " + str(num) + " most used Emotes**"
+    if emote:
+        mes += " **with** \t *" + emote + "* "
+    mes += " \n```"
     for key, value in top_emotes.items():
-        #string = string + str(key) + ' [' + str(value) + '] ;; '
-        string += ":"+str(key) + ": \n\t" + str(value) + "\n"
-        #em.add_field(name='', value='', inline=False)
-    string += "```"
-    await client.say(string)
+        mes += '#{:02d}\tCount: {: <5d}\t{}'.format(index, value, ':'+str(key)+':')
+        mes += '\n'
+        index += 1
+    mes += "```"
+    #await client.say(string)
+    await client.say(mes)
 
 @client.command(name='count',
                 description='List the count of specified emote.',
@@ -127,11 +152,20 @@ async def count(context):
 
 @client.event
 async def on_message(message):
-    regex = re.compile(r':[A-Za-z0-9]+:')
-    result = regex.findall(message.content)
-    result = [r.replace(':', '') for r in result]
-    add_results(message.server.id, result)
+    if message.author != client.user:
+        regex = re.compile(r':[A-Za-z0-9]+:')
+        result = regex.findall(message.content)
+        result = [r.replace(':', '') for r in result]
+        add_results(message.server.id, result)
 
+    if client.user.mentioned_in(message) and message.mention_everyone is False:
+        # special reply to me
+        if message.author.id == '309232625892065282':
+            if any(c in message.content for c in ('ily', 'i love you')):
+                await client.send_message(message.channel, 'i love you too ' + message.author.mention + ' ♥')
+            else:
+                await client.send_message(message.channel, 'i love you ' + message.author.mention + ' ♥')
+    
     await client.process_commands(message)
     return
 
