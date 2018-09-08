@@ -58,7 +58,7 @@ def add_results(server_id, results):
 def get_top(server_id, num, emote=None):
     server = db[server_id]
     if emote:
-        rgx = '.*'+emote+'*.'
+        rgx = '.*'+emote+'.*'
         top = server.aggregate([{'$match': {'emote': {'$regex': rgx}}}, {'$sort': {'count': -1}}, {'$limit': num}])
     else:
         top = server.aggregate([{'$sort': {'count': -1}}, {'$limit': num}])
