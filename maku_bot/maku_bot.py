@@ -214,6 +214,13 @@ async def on_message(message):
                 string = str(content) + "C is equal to " + str(round(fh, 2)) + "F."
                 await client.send_message(message.channel, string)
 
+startup_extensions = ["movienight"]
+for extension in startup_extensions:
+    try:
+        client.load_extension("cogs."+extension)
+    except Exception as e:
+        exc = '{}: {}'.format(type(e).__name__, e)
+        print('Failed to load extension {}\n{}'.format(extension, exc))
 
 client.loop.create_task(list_servers())
 client.run(TOKEN)
