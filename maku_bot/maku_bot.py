@@ -87,6 +87,7 @@ async def to_c(number :int):
     ce = (((content - 32) * 5) / 9)
     string = str(content) + "F is equal to " + str(round(ce, 2)) + "C."
     await client.say(string)
+    await client.say("This command is deprecated. Please use `.convert {:d} f to c`".format(content))
 
 @client.command(name='tof',
                 aliases=['toF'],
@@ -97,6 +98,7 @@ async def to_f(number :int):
     fh = (((content * 9) / 5) + 32)
     string = str(content) + "C is equal to " + str(round(fh, 2)) + "F."
     await client.say(string)
+    await client.say("This command is deprecated. Please use `.convert {:d} c to f`".format(content))
 
 
 @client.command(name='top',
@@ -214,7 +216,7 @@ async def on_message(message):
                 string = str(content) + "C is equal to " + str(round(fh, 2)) + "F."
                 await client.send_message(message.channel, string)
 
-startup_extensions = ["movienight"]
+startup_extensions = ["converter"] # movienight not yet used
 for extension in startup_extensions:
     try:
         client.load_extension("cogs."+extension)
