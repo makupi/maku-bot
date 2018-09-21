@@ -3,6 +3,11 @@ from discord.ext import commands
 from pymongo import MongoClient
 import os
 import time
+import random
+
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+
 
 class MovieNight:
     def __init__(self, bot):
@@ -21,9 +26,9 @@ class MovieNight:
         new_movie = {
             'movie': movie,
             'user': ctx.message.author.display_name,
+            'user_id': ctx.message.author.id,
             'time': time.time()
         }
-        print(new_movie)
         #add movie to suggestions, if there is currently open suggestions
         self.check_db_init(ctx.message.server.id)
         is_open = server.find_one({'open': {'$exists': 1}})
@@ -33,14 +38,26 @@ class MovieNight:
             is_open = None
         string = ""
         if is_open:
-            exists = server.find_one({"movies.user": new_movie['user']})
+            exists = server.find_one({"movies.user_id": new_movie['user_id']})
             if exists is None:
-                ret = server.update_one({'movies': {'$exists': 1}}, {'$push': {'movies': new_movie}})
+                server.update_one({}, {'$push': {'movies': new_movie}})
                 string = '"{}" was added to the list.'.format(new_movie['movie'])
             else:
-                #TODO: doesn't work yet. pop the previous suggestion and push new one
-                server.update_one({'movies': {'$exists': 1}}, {'$pull': {'movies.user': exists['user']}})
-                server.update_one({'movies': {'$exists': 1}}, {'$push': {'movies': new_movie}})
+                # finds the exact movie object from that user to $pull it
+                try:
+                    for _movie in exists['movies']:
+                        if _movie['user_id'] == new_movie['user_id']:
+                            movie = _movie
+                            break
+                    else:
+                        movie = None
+                except:
+                    movie = None
+                if movie is not None:
+                    server.update_one({}, {'$pull': {'movies': movie}})
+                    print("removed movie:")
+                    pp.pprint(movie)
+                server.update_one({}, {'$push': {'movies': new_movie}})
                 string = 'Suggestion was updated to "{}".'.format(new_movie['movie'])
         else:
             string = "Suggestions are currently closed."
@@ -54,7 +71,7 @@ class MovieNight:
         print("suggestions")
         #print the current suggestions 
         server = self.db[ctx.message.server.id]
-        movies = server.find_one({'movies': {'$exists': 1}})
+        movies = server.find_one({})
         try:
             movies = movies.get('movies', list())
         except:
@@ -96,7 +113,7 @@ class MovieNight:
                       brief='clear suggestions',
                       pass_context=True)
     @commands.has_permissions(administrator=True)
-    async def movie_clear(self,ctx):
+    async def movie_clear(self, ctx):
         server = self.db[ctx.message.server.id]
         is_open = server.find_one({'open': {'$exists': 1}})
         try:
@@ -105,6 +122,34 @@ class MovieNight:
             is_open = None
         server.delete_one({'open': {'$exists': 1}})
         server.insert({'open': is_open, 'movies': []})
+    
+    @commands.command(name='movie-poll',
+                      description='start a poll with 5 from the suggested movie, randomized before selecting',
+                      brief='start movie poll',
+                      pass_context=True)
+    @commands.has_permissions(administrator=True)
+    async def movie_poll(self, ctx):
+        server = self.db[ctx.message.server.id]
+        try:
+            movies = server.find_one({})['movies']            
+        except Exception as ex:
+            print("exception occured {}".format(ex))
+            movies = list()
+        
+        print(movies)
+        number_movies = len(movies)
+        picked_movies = list()
+        if number_movies == 0:
+            await self.bot.say("No movies suggested. No poll possible.")
+        elif number_movies <= 5:  # no shuffle needed 
+            picked_movies = movies
+        else:
+            picked_movies = random.shuffle(movies)[:5]
+        string = "```"
+        for index, movie in enumerate(movies):
+            string += '#{}: \t "{}"\n'.format(str(index), movie['movie'])
+        string += "```"
+        await self.bot.say(string)
     
     def check_db_init(self, server_id):
         server = self.db[server_id]
