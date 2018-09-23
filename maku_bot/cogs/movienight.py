@@ -88,7 +88,7 @@ class MovieNight:
                       description='Open up suggestions',
                       brief='Open up suggestions',
                       pass_context=True)
-    @commands.has_permissions(administrator=True)
+    @commands.has_permissions(manage_channels=True)
     async def movie_open(self, ctx):
         server = self.db[ctx.message.server.id]
         self.check_db_init(ctx.message.server.id)
@@ -100,7 +100,7 @@ class MovieNight:
                       description='close up suggestions',
                       brief='close up suggestions',
                       pass_context=True)
-    @commands.has_permissions(administrator=True)
+    @commands.has_permissions(manage_channels=True)
     async def movie_close(self, ctx):
         server = self.db[ctx.message.server.id]
         self.check_db_init(ctx.message.server.id)
@@ -111,7 +111,7 @@ class MovieNight:
                       description='clear suggestions',
                       brief='clear suggestions',
                       pass_context=True)
-    @commands.has_permissions(administrator=True)
+    @commands.has_permissions(manage_channels=True)
     async def movie_clear(self, ctx):
         server = self.db[ctx.message.server.id]
         is_open = server.find_one({'open': {'$exists': 1}})
@@ -126,7 +126,7 @@ class MovieNight:
                       description='start a poll with 5 from the suggested movie, randomized before selecting',
                       brief='start movie poll',
                       pass_context=True)
-    @commands.has_permissions(administrator=True)
+    @commands.has_permissions(manage_channels=True)
     async def movie_poll(self, ctx):
         server = self.db[ctx.message.server.id]
         try:
