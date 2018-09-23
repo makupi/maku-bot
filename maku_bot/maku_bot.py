@@ -1,6 +1,6 @@
 import asyncio
 import json
-
+import time
 import re
 
 import discord
@@ -32,6 +32,8 @@ BOT_PREFIX = ('.')
 TOKEN = data['TOKEN']  # Get at discordapp.com/developers/applications/me
 
 client = Bot(command_prefix=BOT_PREFIX)
+
+#print(data)
 
 
 async def list_servers():
@@ -78,27 +80,27 @@ def get_count(server_id, emote):
     else: 
         return None
 
-@client.command(name='toc',
-                aliases=['toC'],
-                description='Converts temperature from F to C',
-                brief=': Converts F to C')
-async def to_c(number :int):
-    content = int(number)
-    ce = (((content - 32) * 5) / 9)
-    string = str(content) + "F is equal to " + str(round(ce, 2)) + "C."
-    await client.say(string)
-    await client.say("This command is deprecated. Please use `.convert {:d} f to c`".format(content))
+# @client.command(name='toc',
+#                 aliases=['toC'],
+#                 description='Converts temperature from F to C',
+#                 brief=': Converts F to C')
+# async def to_c(number :int):
+#     content = int(number)
+#     ce = (((content - 32) * 5) / 9)
+#     string = str(content) + "F is equal to " + str(round(ce, 2)) + "C."
+#     await client.say(string)
+#     await client.say("This command is deprecated. Please use `.convert {:d} f to c`".format(content))
 
-@client.command(name='tof',
-                aliases=['toF'],
-                description='Converts temperature from C to F',
-                brief=': Converts C to F')
-async def to_f(number :int):
-    content = int(number)
-    fh = (((content * 9) / 5) + 32)
-    string = str(content) + "C is equal to " + str(round(fh, 2)) + "F."
-    await client.say(string)
-    await client.say("This command is deprecated. Please use `.convert {:d} c to f`".format(content))
+# @client.command(name='tof',
+#                 aliases=['toF'],
+#                 description='Converts temperature from C to F',
+#                 brief=': Converts C to F')
+# async def to_f(number :int):
+#     content = int(number)
+#     fh = (((content * 9) / 5) + 32)
+#     string = str(content) + "C is equal to " + str(round(fh, 2)) + "F."
+#     await client.say(string)
+#     await client.say("This command is deprecated. Please use `.convert {:d} c to f`".format(content))
 
 
 @client.command(name='top',
@@ -151,6 +153,17 @@ async def count(context):
     string = ":" + result[0] + \
         ": was used `" + str(cnt) + "` times."
     await client.say(string)
+
+@client.command(name='ping', 
+                description='well.. ping?',
+                brief='pong',
+                pass_context=True)
+async def ping(context):
+    before = time.time()
+    message = await client.say("Pong!")
+    ping = (time.time() - before) * 1000
+    msg = "Current Ping: {:.2f}ms".format(ping)
+    await client.edit_message(message, msg)
 
 @client.event
 async def on_message(message):

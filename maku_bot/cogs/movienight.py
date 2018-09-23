@@ -8,6 +8,7 @@ import random
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
+reactions = ['\N{DIGIT ONE}' + u"\u20E3", '\N{DIGIT TWO}' + u"\u20E3", '\N{DIGIT THREE}' + u"\u20E3", '\N{DIGIT FOUR}' + u"\u20E3", '\N{DIGIT FIVE}' + u"\u20E3"]
 
 class MovieNight:
     def __init__(self, bot):
@@ -55,8 +56,6 @@ class MovieNight:
                     movie = None
                 if movie is not None:
                     server.update_one({}, {'$pull': {'movies': movie}})
-                    print("removed movie:")
-                    pp.pprint(movie)
                 server.update_one({}, {'$push': {'movies': new_movie}})
                 string = 'Suggestion was updated to "{}".'.format(new_movie['movie'])
         else:
@@ -68,7 +67,6 @@ class MovieNight:
                       brief='Currently suggested movies',
                       pass_context=True)
     async def movie_list(self, ctx):
-        print("suggestions")
         #print the current suggestions 
         server = self.db[ctx.message.server.id]
         movies = server.find_one({})
@@ -83,7 +81,6 @@ class MovieNight:
         for movie in movies:
             string += '"{}" suggested by {}\n'.format(movie['movie'], movie['user'])
         string += "```"
-        print(string)
         await self.bot.say(string)
             
     
@@ -96,6 +93,8 @@ class MovieNight:
         server = self.db[ctx.message.server.id]
         self.check_db_init(ctx.message.server.id)
         server.update_one({'open': {'$exists': 1}}, {'$set': {'open': True}})
+        string = "Suggestions for next Movienight are open! Use `.movie name` to suggest a movie."
+        await self.bot.say(string)
     
     @commands.command(name='movie-close', 
                       description='close up suggestions',
@@ -136,20 +135,28 @@ class MovieNight:
             print("exception occured {}".format(ex))
             movies = list()
         
-        print(movies)
         number_movies = len(movies)
         picked_movies = list()
         if number_movies == 0:
             await self.bot.say("No movies suggested. No poll possible.")
+            return
         elif number_movies <= 5:  # no shuffle needed 
             picked_movies = movies
         else:
             picked_movies = random.shuffle(movies)[:5]
-        string = "```"
+        string = ""
+        
+        _reactions = list()
         for index, movie in enumerate(movies):
-            string += '#{}: \t "{}"\n'.format(str(index), movie['movie'])
-        string += "```"
-        await self.bot.say(string)
+            temp = '{} \t\t {}\n'.format(reactions[index], movie['movie'])
+            string += temp
+            _reactions.append(reactions[index])
+        #string += "```"
+        embed = discord.Embed(description=string)
+        message = await self.bot.say('**MOVIE NIGHT POLL**', embed=embed)
+        for react in _reactions:
+            await self.bot.add_reaction(message, react)
+        
     
     def check_db_init(self, server_id):
         server = self.db[server_id]

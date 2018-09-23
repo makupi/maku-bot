@@ -12,6 +12,7 @@ pymongo = "==3.7.1"
 dnspython = "==1.15.0"
 Pint = "==0.8.1"
 numpy = "*"
+influxdb = "*"
 
 [dev-packages]
 

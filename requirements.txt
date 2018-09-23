@@ -1,7 +1,7 @@
 discord.py==0.16.12
-tinydb==3.10.0
 click==6.7
 discord==0.0.2
 pymongo==3.7.1
 dnspython==1.15.0
 Pint==0.8.1
+influxdb==5.2.0

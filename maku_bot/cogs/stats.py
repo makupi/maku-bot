@@ -3,10 +3,24 @@ from discord.ext import commands
 import time
 import re
 import numpy as np
-import threading
+#import threading
 import datetime
 import asyncio
 
+from influxdb import InfluxDBClient
+import os
+
+infdb = {
+    'USER': os.environ.get('INFLUX_USER', None),
+    'KEY': os.environ.get('INFLUX_KEY', None),
+    'URL': os.environ.get('INFLUX_URL', None),
+    'PORT': int(os.environ.get('INFLUX_PORT', None))
+}
+try:
+    inf_client = InfluxDBClient(infdb['URL'], infdb['PORT'], infdb['USER'], infdb['KEY'], 'message_stats')
+except:
+    inf_client = None
+#inf_client.create_database('message_stats')
 
 class ServerStats:
     def __init__(self, server_id):
@@ -17,6 +31,8 @@ class ServerStats:
     def update(self, channel_id, content):
         regex = re.compile(r":[A-Za-z0-9]+:")
         result = regex.findall(content)
+        words = content.split()
+        words = [word for word in words if not word.startswith('<:')]
         if channel_id in self.data:
             channel = self.data[channel_id]
             try:
@@ -28,16 +44,16 @@ class ServerStats:
             except:
                 channel["emotes"] = 0
             try:
-                channel["words"] += len(content.split())
+                channel["words"] += len(words)
             except:
                 channel["words"] = 0
         else:
             self.data[channel_id] = {
                 "messages": 1,
                 "emotes": len(result),
-                "words": len(content.split()),
+                "words": len(words),
             }
-        print(self.data)
+        #print(self.data)
 
     def new_min(self):
         print("{} = {}".format(str(self.server_id), str(datetime.datetime.now())))
@@ -45,7 +61,17 @@ class ServerStats:
         self.reset()
 
     def reset(self):
+        minute = {
+            'timestamp': time.time(),
+            'stats': self.data
+        }
         self.last_hour.append(self.data)
+        for index, minute in enumerate(self.last_hour):
+            try:
+                if (minute['timestamp'] - time.time()) > 3600:
+                    last_hour.pop(index)
+            except:
+                pass
         self.data = dict()
 
     def store(self):
@@ -121,6 +147,8 @@ class Stats:
         if message.author == self.bot.user:
             return
 
+        influxdb_message(message)
+
         for server in self.servers:
             if server.matches(server_id):
                 server.update(channel_id, message.content)
@@ -153,6 +181,86 @@ class Stats:
             for server in self.servers:
                 server.new_min()
 
+def influxdb_message(message):
+    messagedata = {}
+    regex = re.compile(r":[A-Za-z0-9]+:")
+    result = regex.findall(message.content)
+    messagedata['server']  = int(message.server.id)
+    messagedata['channel'] = int(message.channel.id)
+    messagedata['author']  = int(message.author.id)
+    words = message.content.split()
+    words = [word for word in words if not word.startswith('<:')]
+    messagedata['content'] = float(len(words))
+    messagedata['emotes'] = int(len(result))
+    cur_time = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    stats_collector(messagedata, cur_time)
+
+def stats_collector(message, timestamp):
+    ''' takes discord message object and sends data to influxdb '''
+    stats = []
+
+    # Count messages
+    stats.append({
+        'measurement': 'message_count',
+        'fields': {
+            'value': 1.0
+        },
+        'time': timestamp,
+        'tags': {
+            'channel': message['channel'],
+            'server' : message['server'],
+            'author' : message['author']
+        }
+    })
+
+    # Count words per message
+    stats.append({
+        'measurement': 'word_count',
+        'fields': {
+            'value': message['content']
+        },
+        'time': timestamp,
+        'tags': {
+            'channel': message['channel'],
+            'server' : message['server'],
+            'author' : message['author']
+        }
+    })
+
+    # emote count per message
+    stats.append({
+        'measurement': 'emotes_count',
+        'fields': {
+            'value': message['emotes']
+        },
+        'time': timestamp,
+        'tags': {
+            'channel': message['channel'],
+            'server' : message['server'],
+            'author' : message['author']
+        }
+    })
+
+    send_to_influxdb(stats, timestamp)
+
+    return True
+
+def send_to_influxdb(data, timestamp):
+    """ send results to kairosdb """
+    try:
+        inf_client.write_points(data)
+    except Exception as ex:
+        if "database not found" in str(ex):
+            inf_client.create_database('message_stats')
+            try:
+                inf_client.write_points(data)
+            except:
+                pass
+    #kairosdb_server = '<redacted>'
+    #headers = {'Content-Type': 'application/json'}
+    #response = requests.post(kairosdb_server, json.dumps([data]), headers=headers)
+
+    #return response.status_code
 
 def setup(bot):
     bot.add_cog(Stats(bot))
