@@ -136,18 +136,19 @@ class MovieNight:
             movies = list()
         
         number_movies = len(movies)
-        picked_movies = list()
+        picked_movies = list() 
         if number_movies == 0:
             await self.bot.say("No movies suggested. No poll possible.")
             return
         elif number_movies <= 5:  # no shuffle needed 
             picked_movies = movies
         else:
-            picked_movies = random.shuffle(movies)[:5]
+            random.shuffle(movies)
+            picked_movies = movies[:5]
         string = ""
         
         _reactions = list()
-        for index, movie in enumerate(movies):
+        for index, movie in enumerate(picked_movies):
             temp = '{} \t\t {}\n'.format(reactions[index], movie['movie'])
             string += temp
             _reactions.append(reactions[index])
